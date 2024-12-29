@@ -1,0 +1,128 @@
+---
+title: "georgia_schools_data_starter_pack_script"
+author: "Jennifer Peebles-The Atlanta Journal-Constitution"
+date: "12/28/24"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, eval = TRUE, echo = FALSE, include = FALSE}
+
+# Reminder: Package to update R is install.packages("installr") and then load library(installr). The command is then updateR().
+
+# Reminder of what packages are automatically loaded in the core tidyverse, as of Dec. 28, 2024: ggplot2, dplyr, tidyr, readr, purrr, tibble, stringr, and forcats. Also it loads also it loads DBI, haven, httr, readxl, googlesheets4, googledrive, rvest, jsonlite and xml2. More info at https://www.tidyverse.org/packages/
+
+# Not included in the core tidyverse as of 12/28/24: lubridate, hms, blob, dbplyr, magrittr, glue, or any of the tidymodels packages (modelr/broom), and not reprex. 
+
+# Load some packages
+packages <- c("tidyverse", "janitor", "knitr", "magrittr")
+installed_packages <- rownames(installed.packages())
+
+for (pkg in packages) {
+  if (!pkg %in% installed_packages) install.packages(pkg)
+  library(pkg, character.only = TRUE)
+}
+
+# Settings
+options(digits = 3, scipen = 999)
+knitr::opts_chunk$set(echo = TRUE)
+knit_hooks$set(inline = function(x) prettyNum(x, big.mark = ","))
+
+
+```
+
+```{r get_ready, eval = TRUE, echo = FALSE, include = FALSE}
+
+# If you want to clear out all the variables in your R workspace, I like to do this, you don't have to
+# rm(list = ls()) 
+
+# show my working directory
+getwd()
+
+# Let's set up the correct working directory for this ... 
+
+# base_wd <- "[F:/your_file_path_here/dont_forget/the_slashes_must_be_forward_slashes"
+
+# actually set the new working directory
+# setwd(base_wd)
+
+# Show my working directory again to make sure it has updated to the new folder. 
+getwd()
+
+```
+
+```{r pull_in_data, eval = TRUE, echo = FALSE, include = FALSE}
+
+# Let's read in our data file. First, let's give R the file path to our file. 
+file_path <- "file_path_here/remember_to_use_only_forward_slashes/"
+
+f <- "[file_name_here_as_an_Excel_file].xlsx"
+
+d <- paste0(file_path, f) %>% print()
+
+d2 <- read_excel(d, sheet = "Sheet1") %>% janitor::clean_names()
+
+# if you need to read in a downloaded CSV -- and all data downloaded from GaDOE will likely be in CSV's -- use this one ... 
+
+# read in CSV file ... Here is a real file name from GaDOE as an example ... 
+e <- "FTE Enrollment by Grade Fiscal Year2025-1 Data Report (2).csv"
+
+file_path <-  "file_path_here/remember_to_use_only_forward_slashes/"
+
+e2 <- paste0(file_path, e) %>% print()
+
+# note this has a skip setting on it to tell it to ignore a certain number of lines. This is common with schools data ... 
+e3 <- read_csv(e2, skip=4) %>% janitor::clean_names() %>%  rename(school_name = s_chool_name)
+
+```
+
+```{r fix_id_numbers, eval = TRUE, echo = FALSE, include = FALSE}
+
+# it's often good to know how many rows are in your data frame. Let's find out. 
+num_rows_in_df <- nrow(d2)
+
+# Extract the three left-most characters from a string (the column here is d2$combined_sys_sch_id2) to pull out the system ID
+substr(d2$combined_sys_sch_id2, 1, 3)
+
+# Check length of a given column (here: d2$combined_sys_sch_id2) with nchar. 
+nchar(d2$combined_sys_sch_id2)
+
+# For columns that have the four-digit school ID code in the first four characters of a string (the string here is the column e3$school_name), this is a code that will extract those first four digits and place them in a new column called sch_id
+substr(e3$school_name, 1, 4)
+
+# Extract the four right-most characters from a string of variable length -- the string here is the column d2$combined_sys_sch_id2 -- to extract the school ID. This snippet determines the length of that string and then tells R to extract the characters from [the fourth-last to the last spot, whatever that is] to the ending spot. 
+substr(d2$combined_sys_sch_id2,-4,nchar(d2$combined_sys_sch_id2))
+
+# If you need to pad out the school ID column with leading zeroes ... use the str_pad function from stringr.
+str_pad(df$column_name,4, pad = "0")
+
+# Then you can use the paste or paste0 commands to combine the system ID and school ID. 
+
+# Paste0 works as follows:
+paste0("first_item_to_paste", "second_item_to_paste", "and_so_on") %>% print()
+
+# For use on data frames that contain a mix of records in the table for school-level data and system- (or district-level) data, here is a snippet of code that will filter out rows marked "System Total"
+
+e3 %>%  filter(!str_detect(school_name, "System Total"))
+
+nrow(e3 %>%  filter(!str_detect(school_name, "System Total")))
+
+# Check the length of a column of system ID's; save the length in a new column. 
+
+e3$length_sys_id <- nchar(e3$system_id)
+
+# Limit our data to just schools with 3-digit system ID's. The state always expresses the school ID's of the state-run schools as 7-digit numbers, for reasons I've never understood. I have manually checked for the 2024 promise school list and none of the state-run schools are on the promise school list. Rather than continuing to screw with string functions, let's just take the state-run schools out for now entirely since they aren't part of this discussion. 
+
+e4 <- e3 %>%  filter(length_sys_id == 3)
+
+# if you need to look for state schools, you can use these snippets
+
+e3 %>%  filter(str_detect(school_name, "state"))
+
+View(e3 %>%  filter(str_detect(school_name, "state")))
+
+# Note that the most recent GaDOE enrollment data by school lives at https://app3.doe.k12.ga.us/ows-bin/owa/fte_pack_enrollgrade.entry_form
+
+
+```
